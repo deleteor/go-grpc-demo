@@ -1,4 +1,4 @@
-module gprc-demo
+module grpc-server
 
 go 1.14
 

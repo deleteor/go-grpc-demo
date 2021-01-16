@@ -1,2 +1,1 @@
-# go-grpc-demo
-go grpc demo
+# grpc-demo

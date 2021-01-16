@@ -2,39 +2,47 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"gprc-client/pb"
+	"io/ioutil"
 	"log"
-	"os"
-	"time"
 
 	"google.golang.org/grpc"
-	pb "google.golang.org/grpc/examples/helloworld/helloworld"
-)
-
-const (
-	address     = "localhost:50051"
-	defaultName = "world"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
-	//建立链接
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	// 自签证书
+	// creds, err := credentials.NewClientTLSFromFile("keys/server.crt", "thefools.ml")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// 	return
+	// }
+
+	// 双向证书
+
+	cert, _ := tls.LoadX509KeyPair("cert/client.pem", "cert/client.key")
+	certPool := x509.NewCertPool()
+	ca, _ := ioutil.ReadFile("cert/ca.pem")
+	certPool.AppendCertsFromPEM(ca)
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ServerName:   "localhost",
+		RootCAs:      certPool,
+	})
+
+	conn, err := grpc.Dial(":8081", grpc.WithTransportCredentials(creds))
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatal(err)
 	}
 	defer conn.Close()
-	c := pb.NewGreeterClient(conn)
-
-	// Contact the server and print out its response.
-	name := defaultName
-	if len(os.Args) > 1 {
-		name = os.Args[1]
-	}
-	// 1秒的上下文
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
+	client := pb.NewEmployeeServiceClient(conn)
+	res, err := client.GetEmployee(context.Background(), &pb.EmployeeRequest{Id: 1})
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		log.Fatal(err)
 	}
-	log.Printf("Greeting: %s", r.Message)
+
+	fmt.Println(res)
 }
